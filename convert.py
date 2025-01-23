@@ -19,9 +19,10 @@ parser = ArgumentParser("Colmap converter")
 parser.add_argument("--no_gpu", action='store_true')
 parser.add_argument("--skip_matching", action='store_true')
 parser.add_argument("--source_path", "-s", required=True, type=str)
-parser.add_argument("--camera", default="OPENCV", type=str)
+parser.add_argument("--camera", default="SIMPLE_PINHOLE", type=str)
 parser.add_argument("--colmap_executable", default="", type=str)
 parser.add_argument("--resize", action="store_true")
+parser.add_argument("--alignManhattanWorld", action="store_true")
 parser.add_argument("--magick_executable", default="", type=str)
 args = parser.parse_args()
 colmap_command = '"{}"'.format(args.colmap_executable) if len(args.colmap_executable) > 0 else "colmap"
@@ -35,7 +36,7 @@ if not args.skip_matching:
     feat_extracton_cmd = colmap_command + " feature_extractor "\
         "--database_path " + args.source_path + "/distorted/database.db \
         --image_path " + args.source_path + "/input \
-        --ImageReader.single_camera 1 \
+        --ImageReader.single_camera 0 \
         --ImageReader.camera_model " + args.camera + " \
         --SiftExtraction.use_gpu " + str(use_gpu)
     exit_code = os.system(feat_extracton_cmd)
@@ -120,5 +121,20 @@ if(args.resize):
         if exit_code != 0:
             logging.error(f"12.5% resize failed with code {exit_code}. Exiting.")
             exit(exit_code)
+
+if(args.alignManhattanWorld):
+    print("Aligning Manhattan World...")
+    
+    os.makedirs(args.source_path + "/sparse/aligned", exist_ok=True)
+    
+    manhattanAlign_cmd = colmap_command + " model_orientation_aligner \
+        --image_path " + args.source_path + "/images \
+        --input_path " + args.source_path + "/sparse/0 \
+        --output_path " + args.source_path + "/sparse/aligned \
+        --method MANHATTAN-WORLD"
+    exit_code = os.system(manhattanAlign_cmd)
+    if exit_code != 0:
+        logging.error(f"Align Manhattan World failed with code {exit_code}. Exiting.")
+        exit(exit_code)
 
 print("Done.")
